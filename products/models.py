@@ -9,6 +9,7 @@ class Product(TimeStampedModel, models.Model):
     price = models.FloatField()
     currency = models.CharField(max_length=255, choices=Currency.choices, default=Currency.GEL)
     tags = models.ManyToManyField("products.ProductTag", related_name='products', blank=True)
+    quantity=models.PositiveIntegerField()
 
     def __str__(self):
         return f"Product: {self.name} - {self.price} {self.currency}"
@@ -18,7 +19,7 @@ class Product(TimeStampedModel, models.Model):
 
 
 class Review(TimeStampedModel, models.Model):
-    product = models.ForeignKey('products.Product', on_delete=models.CASCADE)
+    product = models.ForeignKey('products.Product', related_name='reviews', on_delete=models.CASCADE)
     user = models.ForeignKey('users.User', on_delete=models.SET_NULL, null=True, blank=True)
     content = models.TextField()
     rating = models.PositiveIntegerField(validators=[MaxValueValidator(5)])

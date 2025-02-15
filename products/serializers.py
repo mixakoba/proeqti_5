@@ -3,64 +3,63 @@ from products.models import Review, Product,Cart,ProductTag,FavoriteProduct
 from users.models import User
 
 
-class ProductSerializer(serializers.ModelSerializer):
-    class Meta:
-        model=Product
-        exclude=['created_at','updated_at','tags']
-
-
 class ReviewSerializer(serializers.ModelSerializer):
+    product_id=serializers.IntegerField(write_only=True)
+
     class Meta:
         model=Review
-        exclude=['created_at','updated_at']
+        fields=['product_id', 'content', 'rating']
 
     def validate_product_id(self,value):
-        try:
-            Product.objects.get(id=value)
-        except Product.DoesNotExist:
+        if not Product.objects.filter(id=value).exists():
             raise serializers.ValidationError("Invalid product_id. Product does not exist.")
         return value
 
-    def validate_rating(self, value):
+    def validate_rating(self,value):
         if value<1 or value>5:
             raise serializers.ValidationError("Rating must be between 1 and 5.")
         return value
 
-    def create(self, validated_data):
-        product = Product.objects.get(id=validated_data['product_id'])
-        user = self.context['request'].user
+    def create(self,validated_data):
+        product=Product.objects.get(id=validated_data.pop('product_id'))
+        user=self.context['request'].user
+        return Review.objects.create(product=product,user=user,**validated_data)
 
-        review = Review.objects.create(
-            product=product,
-            user=user,
-            content=validated_data['content'],
-            rating=validated_data['rating'],
-        )
-        return review
+
+class ProductSerializer(serializers.ModelSerializer):
+    reviews=ReviewSerializer(many=True, read_only=True)
+    class Meta:
+        exclude=['created_at', 'updated_at', 'tags'] 
+        model=Product
     
 class CartSerializer(serializers.ModelSerializer):
-    product_name=serializers.CharField(source='product.name',read_only=True)
-
+    user=serializers.HiddenField(default=serializers.CurrentUserDefault())
+    products=ProductSerializer(many=True,read_only=True)
+    product_ids=serializers.PrimaryKeyRelatedField(
+        source='products',
+        queryset=Product.objects.all(),
+        many=True,
+        write_only=True
+    )
+    
     class Meta:
         model=Cart
-        fields=['id', 'product', 'product_name', 'quantity']
-
-    def validate_quantity(self,value):
-        if value<=0:
-            raise serializers.ValidationError("quantity must be a positive integer")
-        return value
-
-    def validate_product(self,value):
-        try:
-            product=Product.objects.get(id=value.id)
-        except Product.DoesNotExist:
-            raise serializers.ValidationError("product does not exist")
-        return value
+        fields=['user','product_ids','products']
+        
+    def create(self,validated_data):
+        user=validated_data.pop('user')
+        products=validated_data.pop('products')
+        
+        cart,_=Cart.objects.get_or_create(user=user)
+        
+        cart.products.add(*products)
+        
+        return cart
     
 class ProductTagSerializer(serializers.ModelSerializer):
     class Meta:
         model=ProductTag
-        fields=['id','product','tag_name']
+        fields=['id','name']
 
     def validate_tag_name(self, value):
         product_id=self.initial_data.get('product_id')
@@ -76,20 +75,25 @@ class ProductTagSerializer(serializers.ModelSerializer):
         return value
     
 class FavoriteProductSerializer(serializers.ModelSerializer):
+    user=serializers.HiddenField(default=serializers.CurrentUserDefault())
+    product_id=serializers.IntegerField(write_only=True)
+    
     class Meta:
         model=FavoriteProduct
-        fields=['id','user','product']
+        fields=['id','user','product_id','product']
+        read_only_fields=['id','product']
 
     def validate_product(self, value):
-        try:
-            product=Product.objects.get(id=value.id)
-        except Product.DoesNotExist:
-            raise serializers.ValidationError("product does not exist")
+        if not Product.objects.filter(id=value).exists():
+            raise serializers.ValidationError('given product_id doesnt exist')
         return value
-
-    def validate_user(self, value):
-        try:
-            user=User.objects.get(id=value.id)
-        except User.DoesNotExist:
-            raise serializers.ValidationError("user does not exist")
-        return value
+    
+    def create(self,validated_data):
+        user=validated_data.pop('user')
+        product_id=validated_data.pop('product_id')
+        product=Product.objects.get(id=product_id)
+        favorite_product,created=FavoriteProduct.objects.get_or_create(user=user,product=product)
+        
+        if not created:
+            raise serializers.ValidationError('Product with given id is already in favorites')
+        return favorite_product
