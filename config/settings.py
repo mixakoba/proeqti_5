@@ -43,7 +43,8 @@ INSTALLED_APPS = [
     "products",
     "categories",
     "django_filters",
-    'rest_framework'
+    "rest_framework",
+    "drf_yasg",
 ]
 
 MIDDLEWARE = [
@@ -133,3 +134,21 @@ AUTH_USER_MODEL = 'users.User'
 
 MEDIA_URL = 'media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+REST_FRAMEWORK={
+    'DEFAULT_AUTHENTICATION_CLASSES':(
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    )
+}
+
+SWAGGER_SETTINGS={
+    'USE_SESSION_AUTH':False,
+    'SECURITY_DEFINITIONS':{
+        'Bearer':{
+            'type':'apiKey',
+            'name':'Authorization',
+            'in':'header',
+            'description':'sheiyvanet JWT tokeni :Bearer <token>'
+        }
+    }
+}

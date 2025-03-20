@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from products.models import Review, Product,Cart,ProductTag,FavoriteProduct,ProductImage
+from products.models import Review, Product,Cart,ProductTag,FavoriteProduct,ProductImage,CartItem
 from users.models import User
 
 
@@ -8,7 +8,7 @@ class ReviewSerializer(serializers.ModelSerializer):
 
     class Meta:
         model=Review
-        fields=['product_id', 'content', 'rating']
+        fields=['product_id', 'content', 'rating','id','user_id']
 
     def validate_product_id(self,value):
         if not Product.objects.filter(id=value).exists():
@@ -23,6 +23,11 @@ class ReviewSerializer(serializers.ModelSerializer):
     def create(self,validated_data):
         product=Product.objects.get(id=validated_data.pop('product_id'))
         user=self.context['request'].user
+        
+        existing_reviews=Review.objects.filter(user=user,product=product)
+        if existing_reviews.exists():
+            raise serializers.ValidationError("You already reviewed this product ")
+        
         return Review.objects.create(product=product,user=user,**validated_data)
 
 class ProductTagSerializer(serializers.ModelSerializer):
@@ -78,6 +83,38 @@ class CartSerializer(serializers.ModelSerializer):
         cart.products.add(*products)
         
         return cart
+
+class CartItemSerializer (serializers.ModelSerializer):
+    product=ProductSerializer (read_only=True)
+    product_id=serializers.PrimaryKeyRelatedField(
+        queryset=Product.objects.all(),
+        write_only=True, 
+        source='product'
+    )
+    total_price=serializers.SerializerMethodField
+
+    class Meta:
+        model=CartItem
+        fields=['id','product','product_id','quantity','price_at_time_of_addition','total_price']
+        read_only_fields=['price_at_time_of_addition']
+
+    def get_total_price(self, obj):
+        return obj.total_price()
+    
+    def create(self,validated_data):
+        product=validated_data.get('product')
+        user=self.context['request'].user
+        cart,created=Cart.objects.get_or_create(user=user)
+        validated_data['cart']=cart
+        validated_data['price_at_time_of_addition']=product.price
+
+        return super().create(validated_data)
+
+    def update(self, instance,validated_data):
+        quantity=validated_data.pop('quantity')
+        instance.quantity=quantity
+        instance.save()
+        return instance
     
     
 class FavoriteProductSerializer(serializers.ModelSerializer):
