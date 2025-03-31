@@ -1,7 +1,9 @@
 from django.contrib.auth import get_user_model
 from rest_framework import mixins,viewsets
 from rest_framework.permissions import IsAuthenticated
-from users.serializers import UserSerializer,RegisterSerializer
+from users.serializers import UserSerializer,RegisterSerializer,ProfileSerializer
+from rest_framework.decorators import action
+from users.permissions import IsObjectOwnerOrReadOnly
 
 User=get_user_model()
 
@@ -13,3 +15,29 @@ class UserViewSet(mixins.ListModelMixin,mixins.RetrieveModelMixin,viewsets.Gener
     queryset=User.objects.all()
     serializer_class=UserSerializer
     permission_classes=[IsAuthenticated]
+
+class ProfileViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin, mixins.UpdateModelMixin, mixins.DestroyModelMixin):
+    serializer_class=ProfileSerializer
+    permission_classes = [IsAuthenticated,IsObjectOwnerOrReadOnly]
+
+    def get_object(self):
+        return self.request.user
+
+    @action(detail=False, methods=['get','put','patch','delete'],permission_classes=[IsAuthenticated,IsObjectOwnerOrReadOnly])
+    def me(self, request):
+        user=self.get_object()
+
+        if request.method=='GET':
+            serializer=self.get_serializer(user)
+            return Response(serializer.data)
+
+        serializer=self.get_serializer(user,data=request.data,partial=request.method=='PATCH')
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+
+        if request.method=='DELETE':
+            user.delete()
+            return Response(status=204)
+
+        return Response(serializer.errors, status=400)
