@@ -41,8 +41,8 @@ schema_view=get_schema_view(
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("", include('products.urls')),
-    path("",include('categories.urls')),
     path("",include('users.urls')),
+    path("",include('categories.urls')),
     path('swagger/',schema_view.with_ui('swagger',cache_timeout=0),name='schema_swagger_ui'),
     path('redoc/',schema_view.with_ui('redoc',cache_timeout=0),name='schema_redoc_ui'),
     path('login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),

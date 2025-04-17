@@ -6,6 +6,7 @@ from django.conf import settings
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
+from config.utils.image_validators import validate_image_resolution,validate_image_size,validate_image_count
 
 class Product(TimeStampedModel, models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.CASCADE,related_name='products',null=False)
@@ -64,6 +65,15 @@ class Cart(TimeStampedModel, models.Model):
 class ProductImage(TimeStampedModel, models.Model):
     image = models.ImageField(upload_to='products/')
     product = models.ForeignKey('products.Product', related_name='images', on_delete=models.CASCADE)
+
+    def clean(self):
+        if self.product_id:
+            validate_image_count(self.product_id)
+        super().clean()
+    
+    def save(self,*args,**kwargs):
+        self.full_clean()
+        super().save(*args,**kwargs)
 
     def __str__(self):
         return f"Image for {self.product.name}"

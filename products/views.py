@@ -16,6 +16,8 @@ from products.filters import ProductFilter,ReviewFilter
 from products.serializers import ProductSerializer,ReviewSerializer,CartSerializer,ProductTagSerializer,ProductImageSerializer,FavoriteProductSerializer,CartItemSerializer
 from django.contrib.auth.models import User
 from django.shortcuts import get_object_or_404
+from rest_framework.parsers import MultiPartParser,FormParser
+from django.core.validators import ValidationError
 
 
 class ProductViewSet(ListModelMixin,CreateModelMixin,DestroyModelMixin,RetrieveModelMixin,UpdateModelMixin,GenericViewSet):
@@ -75,9 +77,16 @@ class ProductImageViewSet(ListModelMixin,RetrieveModelMixin,DestroyModelMixin,Cr
     queryset=ProductImage.objects.all()
     serializer_class=ProductImageSerializer
     permission_classes=[IsAuthenticated]
+    parser_classes=[MultiPartParser,FormParser]
     
     def get_queryset(self):
         return self.queryset.filter(product__id=self.kwargs['product_pk'])
+    
+    def create(self,request,*args,**kwargs):
+        try:
+            super().create(request,*args,**kwargs)
+        except ValidationError as e:
+            return Response({"error":"{e}"},status=status.HTTP_400_BAD_REQUEST)
 
 class CartItemViewSet(ModelViewSet):
     queryset=CartItem.objects.all()

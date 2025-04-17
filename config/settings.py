@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 
 from pathlib import Path
 import os
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -152,3 +153,13 @@ SWAGGER_SETTINGS={
         }
     }
 }
+
+load_dotenv()
+
+EMAIL_BACKEND='django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST='smtp.gmail.com'
+EMAIL_PORT=587
+EMAIL_USE_TLS=True
+EMAIL_HOST_USER="mikhakoba@gmail.com"
+EMAIL_HOST_PASSWORD='istv zhee tesx qioc'
+DEFAULT_FROM_EMAIL=EMAIL_HOST_USER
